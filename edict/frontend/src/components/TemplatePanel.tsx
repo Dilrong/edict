@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useStore, TEMPLATES, TPL_CATS } from '../store';
 import type { Template } from '../store';
 import { api } from '../api';
+import { koDept, koText } from '../i18n';
 
 export default function TemplatePanel() {
   const tplCatFilter = useStore((s) => s.tplCatFilter);
@@ -14,7 +15,7 @@ export default function TemplatePanel() {
   const [previewCmd, setPreviewCmd] = useState('');
 
   let tpls = TEMPLATES;
-  if (tplCatFilter !== '全部') tpls = tpls.filter((t) => t.cat === tplCatFilter);
+  if (tplCatFilter !== '전체') tpls = tpls.filter((t) => t.cat === tplCatFilter);
 
   const openForm = (tpl: Template) => {
     const vals: Record<string, string> = {};
@@ -44,7 +45,7 @@ export default function TemplatePanel() {
     if (!formTpl) return;
     const cmd = buildCmd(formTpl);
     if (!cmd.trim()) {
-      toast('请填写必填参数', 'err');
+      toast('필수 항목을 입력하세요', 'err');
       return;
     }
 
@@ -52,14 +53,14 @@ export default function TemplatePanel() {
     try {
       const st = await api.agentsStatus();
       if (st.ok && st.gateway && !st.gateway.alive) {
-        toast('⚠️ Gateway 未启动，任务将无法派发！', 'err');
-        if (!confirm('Gateway 未启动，继续？')) return;
+        toast('⚠️ Gateway가 실행 중이 아니어서 작업을 배정할 수 없습니다', 'err');
+        if (!confirm('Gateway가 실행 중이 아닙니다. 계속할까요?')) return;
       }
     } catch {
       /* ignore */
     }
 
-    if (!confirm(`确认下旨？\n\n${cmd.substring(0, 200)}${cmd.length > 200 ? '…' : ''}`)) return;
+    if (!confirm(`지시를 생성할까요?\n\n${cmd.substring(0, 200)}${cmd.length > 200 ? '…' : ''}`)) return;
 
     try {
       const params: Record<string, string> = {};
@@ -75,14 +76,14 @@ export default function TemplatePanel() {
         params,
       });
       if (r.ok) {
-        toast(`📜 ${r.taskId} 旨意已下达`, 'ok');
+        toast(`📜 ${r.taskId} 지시를 생성했습니다`, 'ok');
         setFormTpl(null);
         loadAll();
       } else {
-        toast(r.error || '下旨失败', 'err');
+        toast(r.error || '지시 생성 실패', 'err');
       }
     } catch {
-      toast('⚠️ 服务器连接失败', 'err');
+      toast('⚠️ 서버 연결 실패', 'err');
     }
   };
 
@@ -112,13 +113,13 @@ export default function TemplatePanel() {
             <div className="tpl-desc">{t.desc}</div>
             <div className="tpl-footer">
               {t.depts.map((d) => (
-                <span className="tpl-dept" key={d}>{d}</span>
+                <span className="tpl-dept" key={d}>{koDept(d)}</span>
               ))}
               <span className="tpl-est">
                 {t.est} · {t.cost}
               </span>
               <button className="tpl-go" onClick={() => openForm(t)}>
-                下旨
+                지시하기
               </button>
             </div>
           </div>
@@ -132,7 +133,7 @@ export default function TemplatePanel() {
             <button className="modal-close" onClick={() => setFormTpl(null)}>✕</button>
             <div className="modal-body">
               <div style={{ fontSize: 11, color: 'var(--acc)', fontWeight: 700, letterSpacing: '.04em', marginBottom: 4 }}>
-                圣旨模板
+                지시 템플릿
               </div>
               <div style={{ fontSize: 20, fontWeight: 800, marginBottom: 6 }}>
                 {formTpl.icon} {formTpl.name}
@@ -140,7 +141,7 @@ export default function TemplatePanel() {
               <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 18 }}>{formTpl.desc}</div>
               <div style={{ display: 'flex', gap: 6, marginBottom: 18, flexWrap: 'wrap' }}>
                 {formTpl.depts.map((d) => (
-                  <span className="tpl-dept" key={d}>{d}</span>
+                  <span className="tpl-dept" key={d}>{koDept(d)}</span>
                 ))}
                 <span style={{ fontSize: 11, color: 'var(--muted)', marginLeft: 'auto' }}>
                   {formTpl.est} · {formTpl.cost}
@@ -169,7 +170,7 @@ export default function TemplatePanel() {
                         onChange={(e) => setFormVals((v) => ({ ...v, [p.key]: e.target.value }))}
                       >
                         {(p.options || []).map((o) => (
-                          <option key={o}>{o}</option>
+                          <option key={o}>{koText(o)}</option>
                         ))}
                       </select>
                     ) : (
@@ -197,7 +198,7 @@ export default function TemplatePanel() {
                     }}
                   >
                     <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text)', marginBottom: 6 }}>
-                      📜 将发送给中书省的旨意：
+                      📜 중서성으로 보낼 지시:
                     </div>
                     <div style={{ whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>{previewCmd}</div>
                   </div>
@@ -205,10 +206,10 @@ export default function TemplatePanel() {
 
                 <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
                   <button type="button" className="btn btn-g" onClick={preview} style={{ padding: '8px 16px', fontSize: 12 }}>
-                    👁 预览旨意
+                    👁 지시 미리보기
                   </button>
                   <button type="submit" className="tpl-go" style={{ padding: '8px 20px', fontSize: 13 }}>
-                    📜 下旨
+                    📜 지시하기
                   </button>
                 </div>
               </form>

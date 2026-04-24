@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useStore, isEdict, STATE_LABEL } from '../store';
 import type { Task, FlowEntry } from '../api';
+import { koDept, koText } from '../i18n';
 
 export default function MemorialPanel() {
   const liveStatus = useStore((s) => s.liveStatus);
@@ -14,24 +15,30 @@ export default function MemorialPanel() {
 
   const exportMemorial = (t: Task) => {
     const fl = t.flow_log || [];
-    let md = `# 📜 奏折 · ${t.title}\n\n`;
-    md += `- **任务编号**: ${t.id}\n`;
-    md += `- **状态**: ${t.state}\n`;
-    md += `- **负责部门**: ${t.org}\n`;
+    let md = `# 📜 보고서 · ${koText(t.title)}\n\n`;
+    md += `- **작업 ID**: ${t.id}\n`;
+    md += `- **상태**: ${STATE_LABEL[t.state] || t.state}\n`;
+    md += `- **담당 부서**: ${koDept(t.org)}\n`;
     if (fl.length) {
-      const startAt = fl[0].at ? fl[0].at.substring(0, 19).replace('T', ' ') : '未知';
-      const endAt = fl[fl.length - 1].at ? fl[fl.length - 1].at.substring(0, 19).replace('T', ' ') : '未知';
-      md += `- **开始时间**: ${startAt}\n`;
-      md += `- **完成时间**: ${endAt}\n`;
+      const startAt = fl[0].at ? fl[0].at.substring(0, 19).replace('T', ' ') : '알 수 없음';
+      const endAt = fl[fl.length - 1].at ? fl[fl.length - 1].at.substring(0, 19).replace('T', ' ') : '알 수 없음';
+      md += `- **시작 시간**: ${startAt}\n`;
+      md += `- **완료 시간**: ${endAt}\n`;
     }
-    md += `\n## 流转记录\n\n`;
+    md += `\n## 흐름 기록\n\n`;
     for (const f of fl) {
-      md += `- **${f.from}** → **${f.to}**  \n  ${f.remark}  \n  _${(f.at || '').substring(0, 19)}_\n\n`;
+      md += [
+        `- **${koDept(f.from)}** → **${koDept(f.to)}**`,
+        `  ${koText(f.remark)}`,
+        `  _${(f.at || '').substring(0, 19)}_`,
+        '',
+      ].join('\n');
+      md += '\n';
     }
-    if (t.output && t.output !== '-') md += `## 产出物\n\n\`${t.output}\`\n`;
+    if (t.output && t.output !== '-') md += `## 산출물\n\n\`${t.output}\`\n`;
     navigator.clipboard.writeText(md).then(
-      () => toast('✅ 奏折已复制为 Markdown', 'ok'),
-      () => toast('复制失败', 'err')
+      () => toast('✅ 보고서를 Markdown으로 복사했습니다', 'ok'),
+      () => toast('복사 실패', 'err')
     );
   };
 
@@ -39,11 +46,11 @@ export default function MemorialPanel() {
     <div>
       {/* Filter */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 16, alignItems: 'center' }}>
-        <span style={{ fontSize: 12, color: 'var(--muted)' }}>筛选：</span>
+        <span style={{ fontSize: 12, color: 'var(--muted)' }}>필터:</span>
         {[
-          { key: 'all', label: '全部' },
-          { key: 'Done', label: '✅ 已完成' },
-          { key: 'Cancelled', label: '🚫 已取消' },
+          { key: 'all', label: '전체' },
+          { key: 'Done', label: '✅ 완료됨' },
+          { key: 'Cancelled', label: '🚫 취소됨' },
         ].map((f) => (
           <span
             key={f.key}
@@ -58,7 +65,7 @@ export default function MemorialPanel() {
       {/* List */}
       <div className="mem-list">
         {!mems.length ? (
-          <div className="mem-empty">暂无奏折 — 任务完成后自动生成</div>
+          <div className="mem-empty">보고서가 없습니다. 작업 완료 후 자동으로 생성됩니다</div>
         ) : (
           mems.map((t) => {
             const fl = t.flow_log || [];
@@ -71,14 +78,14 @@ export default function MemorialPanel() {
                 <div className="mem-icon">📜</div>
                 <div className="mem-info">
                   <div className="mem-title">
-                    {stIcon} {t.title || t.id}
+                    {stIcon} {koText(t.title || t.id)}
                   </div>
                   <div className="mem-sub">
-                    {t.id} · {t.org || ''} · 流转 {fl.length} 步
+                    {t.id} · {koDept(t.org || '')} · {fl.length}단계 흐름
                   </div>
                   <div className="mem-tags">
                     {depts.slice(0, 5).map((d) => (
-                      <span className="mem-tag" key={d}>{d}</span>
+                      <span className="mem-tag" key={d}>{koDept(d)}</span>
                     ))}
                   </div>
                 </div>
@@ -137,15 +144,15 @@ function MemorialDetailModal({
         </div>
         <div className="md-timeline">
           {items.map((f, i) => {
-            const dotCls = f.remark?.includes('✅') ? 'green' : f.remark?.includes('驳') ? 'red' : '';
+            const dotCls = f.remark?.includes('✅') ? 'green' : f.remark?.includes('驳') || f.remark?.includes('반려') ? 'red' : '';
             return (
               <div className="md-tl-item" key={i}>
                 <div className={`md-tl-dot ${dotCls}`} />
                 <div style={{ display: 'flex', gap: 6, alignItems: 'baseline' }}>
-                  <span className="md-tl-from">{f.from}</span>
-                  <span className="md-tl-to">→ {f.to}</span>
+                  <span className="md-tl-from">{koDept(f.from)}</span>
+                  <span className="md-tl-to">→ {koDept(f.to)}</span>
                 </div>
-                <div className="md-tl-remark">{f.remark}</div>
+                <div className="md-tl-remark">{koText(f.remark)}</div>
                 <div className="md-tl-time">{(f.at || '').substring(0, 19).replace('T', ' ')}</div>
               </div>
             );
@@ -161,38 +168,38 @@ function MemorialDetailModal({
         <button className="modal-close" onClick={onClose}>✕</button>
         <div className="modal-body">
           <div style={{ fontSize: 11, color: 'var(--acc)', fontWeight: 700, letterSpacing: '.04em', marginBottom: 4 }}>{t.id}</div>
-          <div style={{ fontSize: 20, fontWeight: 800, marginBottom: 6 }}>{stIcon} {t.title || t.id}</div>
+          <div style={{ fontSize: 20, fontWeight: 800, marginBottom: 6 }}>{stIcon} {koText(t.title || t.id)}</div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 18, flexWrap: 'wrap' }}>
             <span className={`tag st-${st}`}>{STATE_LABEL[st] || st}</span>
-            <span style={{ fontSize: 11, color: 'var(--muted)' }}>{t.org}</span>
-            <span style={{ fontSize: 11, color: 'var(--muted)' }}>流转 {fl.length} 步</span>
+            <span style={{ fontSize: 11, color: 'var(--muted)' }}>{koDept(t.org)}</span>
+            <span style={{ fontSize: 11, color: 'var(--muted)' }}>{fl.length}단계 흐름</span>
             {depts.map((d) => (
-              <span className="mem-tag" key={d}>{d}</span>
+              <span className="mem-tag" key={d}>{koDept(d)}</span>
             ))}
           </div>
 
           {t.now && (
             <div style={{ background: 'var(--panel2)', border: '1px solid var(--line)', borderRadius: 8, padding: '10px 14px', marginBottom: 18, fontSize: 12, color: 'var(--muted)' }}>
-              {t.now}
+              {koText(t.now)}
             </div>
           )}
 
-          {renderPhase('圣旨原文', '👑', originLog)}
-          {renderPhase('中书规划', '📋', planLog)}
-          {renderPhase('门下审议', '🔍', reviewLog)}
-          {renderPhase('六部执行', '⚔️', execLog)}
-          {renderPhase('汇总回奏', '📨', resultLog)}
+          {renderPhase('원 지시', '👑', originLog)}
+          {renderPhase('중서성 계획', '📋', planLog)}
+          {renderPhase('문하성 심의', '🔍', reviewLog)}
+          {renderPhase('육부 실행', '⚔️', execLog)}
+          {renderPhase('취합 및 복명', '📨', resultLog)}
 
           {t.output && t.output !== '-' && (
             <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid var(--line)' }}>
-              <div style={{ fontSize: 11, fontWeight: 600, marginBottom: 4 }}>📦 产出物</div>
+              <div style={{ fontSize: 11, fontWeight: 600, marginBottom: 4 }}>📦 산출물</div>
               <code style={{ fontSize: 11, wordBreak: 'break-all' }}>{t.output}</code>
             </div>
           )}
 
           <div style={{ display: 'flex', gap: 8, marginTop: 16, justifyContent: 'flex-end' }}>
             <button className="btn btn-g" onClick={() => onExport(t)} style={{ fontSize: 12, padding: '6px 16px' }}>
-              📋 复制奏折
+              📋 보고서 복사
             </button>
           </div>
         </div>

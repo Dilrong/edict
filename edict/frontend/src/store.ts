@@ -1,6 +1,6 @@
 /**
- * Zustand Store — 三省六部看板状态管理
- * HTTP 5s 轮询，无 WebSocket
+ * Zustand Store — 삼성육부 관제판 상태 관리
+ * HTTP 5초 폴링, WebSocket 없음
  */
 
 import { create } from 'zustand';
@@ -15,18 +15,19 @@ import {
   type SubConfig,
   type ChangeLogEntry,
 } from './api';
+import { koText } from './i18n';
 
 // ── Pipeline Definition (PIPE) ──
 
 export const PIPE = [
-  { key: 'Inbox',    dept: '皇上',   icon: '👑', action: '下旨' },
-  { key: 'Taizi',    dept: '太子',   icon: '🤴', action: '分拣' },
-  { key: 'Zhongshu', dept: '中书省', icon: '📜', action: '起草' },
-  { key: 'Menxia',   dept: '门下省', icon: '🔍', action: '审议' },
-  { key: 'Assigned', dept: '尚书省', icon: '📮', action: '派发' },
-  { key: 'Doing',    dept: '六部',   icon: '⚙️', action: '执行' },
-  { key: 'Review',   dept: '尚书省', icon: '🔎', action: '汇总' },
-  { key: 'Done',     dept: '回奏',   icon: '✅', action: '完成' },
+  { key: 'Inbox',    dept: '皇上',   icon: '👑', action: '지시' },
+  { key: 'Taizi',    dept: '太子',   icon: '🤴', action: '분류' },
+  { key: 'Zhongshu', dept: '中书省', icon: '📜', action: '초안 작성' },
+  { key: 'Menxia',   dept: '门下省', icon: '🔍', action: '심의' },
+  { key: 'Assigned', dept: '尚书省', icon: '📮', action: '배정' },
+  { key: 'Doing',    dept: '六部',   icon: '⚙️', action: '실행' },
+  { key: 'Review',   dept: '尚书省', icon: '🔎', action: '취합' },
+  { key: 'Done',     dept: '回奏',   icon: '✅', action: '완료' },
 ] as const;
 
 export const PIPE_STATE_IDX: Record<string, number> = {
@@ -41,9 +42,9 @@ export const DEPT_COLOR: Record<string, string> = {
 };
 
 export const STATE_LABEL: Record<string, string> = {
-  Inbox: '收件', Pending: '待处理', Taizi: '太子分拣', Zhongshu: '中书起草',
-  Menxia: '门下审议', Assigned: '已派发', Doing: '执行中', Review: '待审查',
-  Done: '已完成', Blocked: '阻塞', Cancelled: '已取消', Next: '待执行',
+  Inbox: '수신', Pending: '대기 중', Taizi: '태자 분류', Zhongshu: '중서성 초안',
+  Menxia: '문하성 심의', Assigned: '배정됨', Doing: '실행 중', Review: '검토 대기',
+  Done: '완료됨', Blocked: '차단됨', Cancelled: '취소됨', Next: '실행 대기',
 };
 
 export function deptColor(d: string): string {
@@ -52,8 +53,8 @@ export function deptColor(d: string): string {
 
 export function stateLabel(t: Task): string {
   const r = t.review_round || 0;
-  if (t.state === 'Menxia' && r > 1) return `门下审议（第${r}轮）`;
-  if (t.state === 'Zhongshu' && r > 0) return `中书修订（第${r}轮）`;
+  if (t.state === 'Menxia' && r > 1) return `문하성 심의 (${r}차)`;
+  if (t.state === 'Zhongshu' && r > 0) return `중서성 수정 (${r}차)`;
   return STATE_LABEL[t.state] || t.state;
 }
 
@@ -86,16 +87,16 @@ export type TabKey =
   | 'skills' | 'sessions' | 'memorials' | 'templates' | 'morning' | 'court';
 
 export const TAB_DEFS: { key: TabKey; label: string; icon: string }[] = [
-  { key: 'edicts',    label: '旨意看板', icon: '📜' },
-  { key: 'court',     label: '朝堂议政', icon: '🏛️' },
-  { key: 'monitor',   label: '省部调度', icon: '🔌' },
-  { key: 'officials', label: '官员总览', icon: '👔' },
-  { key: 'models',    label: '模型配置', icon: '🤖' },
-  { key: 'skills',    label: '技能配置', icon: '🎯' },
-  { key: 'sessions',  label: '小任务',   icon: '💬' },
-  { key: 'memorials', label: '奏折阁',   icon: '📜' },
-  { key: 'templates', label: '旨库',     icon: '📋' },
-  { key: 'morning',   label: '天下要闻', icon: '🌅' },
+  { key: 'edicts',    label: '지시 보드', icon: '📜' },
+  { key: 'court',     label: '조정 회의', icon: '🏛️' },
+  { key: 'monitor',   label: '부서 스케줄', icon: '🔌' },
+  { key: 'officials', label: '관원 현황', icon: '👔' },
+  { key: 'models',    label: '모델 설정', icon: '🤖' },
+  { key: 'skills',    label: '스킬 설정', icon: '🎯' },
+  { key: 'sessions',  label: '작은 작업',   icon: '💬' },
+  { key: 'memorials', label: '보고서함',   icon: '📜' },
+  { key: 'templates', label: '지시 템플릿',     icon: '📋' },
+  { key: 'morning',   label: '오늘의 브리핑', icon: '🌅' },
 ];
 
 // ── DEPTS for monitor ──
@@ -140,111 +141,111 @@ export interface Template {
 
 export const TEMPLATES: Template[] = [
   {
-    id: 'tpl-weekly-report', cat: '日常办公', icon: '📝', name: '周报生成',
-    desc: '基于本周看板数据和各部产出，自动生成结构化周报',
-    depts: ['户部', '礼部'], est: '~10分钟', cost: '¥0.5',
+    id: 'tpl-weekly-report', cat: '일상 업무', icon: '📝', name: '주간 보고서 생성',
+    desc: '이번 주 보드 데이터와 각 부서 산출물을 바탕으로 구조화된 주간 보고서를 생성합니다',
+    depts: ['户部', '礼部'], est: '~10분', cost: '¥0.5',
     params: [
-      { key: 'date_range', label: '报告周期', type: 'text', default: '本周', required: true },
-      { key: 'focus', label: '重点关注（逗号分隔）', type: 'text', default: '项目进展,下周计划' },
-      { key: 'format', label: '输出格式', type: 'select', options: ['Markdown', '飞书文档'], default: 'Markdown' },
+      { key: 'date_range', label: '보고 기간', type: 'text', default: '이번 주', required: true },
+      { key: 'focus', label: '중점 항목(쉼표로 구분)', type: 'text', default: '프로젝트 진행,다음 주 계획' },
+      { key: 'format', label: '출력 형식', type: 'select', options: ['Markdown', 'Feishu 문서'], default: 'Markdown' },
     ],
-    command: '生成{date_range}的周报，重点覆盖{focus}，输出为{format}格式',
+    command: '{date_range} 주간 보고서를 생성해 주세요. 중점 항목은 {focus}이고, 출력 형식은 {format}입니다.',
   },
   {
-    id: 'tpl-code-review', cat: '工程开发', icon: '🔍', name: '代码审查',
-    desc: '对指定代码仓库/文件进行质量审查，输出问题清单和改进建议',
-    depts: ['兵部', '刑部'], est: '~20分钟', cost: '¥2',
+    id: 'tpl-code-review', cat: '엔지니어링', icon: '🔍', name: '코드 리뷰',
+    desc: '지정한 저장소나 파일의 품질을 점검하고 문제 목록과 개선안을 정리합니다',
+    depts: ['兵部', '刑部'], est: '~20분', cost: '¥2',
     params: [
-      { key: 'repo', label: '仓库/文件路径', type: 'text', required: true },
-      { key: 'scope', label: '审查范围', type: 'select', options: ['全量', '增量(最近commit)', '指定文件'], default: '增量(最近commit)' },
-      { key: 'focus', label: '重点关注（可选）', type: 'text', default: '安全漏洞,错误处理,性能' },
+      { key: 'repo', label: '저장소/파일 경로', type: 'text', required: true },
+      { key: 'scope', label: '검토 범위', type: 'select', options: ['전체', '증분(최근 commit)', '지정 파일'], default: '증분(최근 commit)' },
+      { key: 'focus', label: '중점 검토(선택)', type: 'text', default: '보안 취약점,오류 처리,성능' },
     ],
-    command: '对 {repo} 进行代码审查，范围：{scope}，重点关注：{focus}',
+    command: '{repo}에 대해 코드 리뷰를 진행해 주세요. 범위: {scope}. 중점 검토: {focus}.',
   },
   {
-    id: 'tpl-api-design', cat: '工程开发', icon: '⚡', name: 'API 设计与实现',
-    desc: '从需求描述到 RESTful API 设计、实现、测试一条龙',
-    depts: ['中书省', '兵部'], est: '~45分钟', cost: '¥3',
+    id: 'tpl-api-design', cat: '엔지니어링', icon: '⚡', name: 'API 설계 및 구현',
+    desc: '요구사항 정리부터 RESTful API 설계, 구현, 테스트까지 진행합니다',
+    depts: ['中书省', '兵部'], est: '~45분', cost: '¥3',
     params: [
-      { key: 'requirement', label: '需求描述', type: 'textarea', required: true },
-      { key: 'tech', label: '技术栈', type: 'select', options: ['Python/FastAPI', 'Node/Express', 'Go/Gin'], default: 'Python/FastAPI' },
-      { key: 'auth', label: '鉴权方式', type: 'select', options: ['JWT', 'API Key', '无'], default: 'JWT' },
+      { key: 'requirement', label: '요구사항', type: 'textarea', required: true },
+      { key: 'tech', label: '기술 스택', type: 'select', options: ['Python/FastAPI', 'Node/Express', 'Go/Gin'], default: 'Python/FastAPI' },
+      { key: 'auth', label: '인증 방식', type: 'select', options: ['JWT', 'API Key', '없음'], default: 'JWT' },
     ],
-    command: '设计并实现一个 {tech} 的 RESTful API：{requirement}。鉴权方式：{auth}',
+    command: '{tech} 기반 RESTful API를 설계하고 구현해 주세요: {requirement}. 인증 방식: {auth}.',
   },
   {
-    id: 'tpl-competitor', cat: '数据分析', icon: '📊', name: '竞品分析',
-    desc: '爬取竞品网站数据，分析对比，生成结构化报告',
-    depts: ['兵部', '户部', '礼部'], est: '~60分钟', cost: '¥5',
+    id: 'tpl-competitor', cat: '데이터 분석', icon: '📊', name: '경쟁사 분석',
+    desc: '경쟁사 사이트 데이터를 수집해 비교 분석하고 구조화된 보고서를 생성합니다',
+    depts: ['兵部', '户部', '礼部'], est: '~60분', cost: '¥5',
     params: [
-      { key: 'targets', label: '竞品名称/URL（每行一个）', type: 'textarea', required: true },
-      { key: 'dimensions', label: '分析维度', type: 'text', default: '产品功能,定价策略,用户评价' },
-      { key: 'format', label: '输出格式', type: 'select', options: ['Markdown报告', '表格对比'], default: 'Markdown报告' },
+      { key: 'targets', label: '경쟁사 이름/URL(줄마다 하나)', type: 'textarea', required: true },
+      { key: 'dimensions', label: '분석 기준', type: 'text', default: '제품 기능,가격 전략,사용자 평가' },
+      { key: 'format', label: '출력 형식', type: 'select', options: ['Markdown 보고서', '표 비교'], default: 'Markdown 보고서' },
     ],
-    command: '对以下竞品进行分析：\n{targets}\n\n分析维度：{dimensions}，输出格式：{format}',
+    command: '아래 경쟁사를 분석해 주세요:\n{targets}\n\n분석 기준: {dimensions}. 출력 형식: {format}.',
   },
   {
-    id: 'tpl-data-report', cat: '数据分析', icon: '📈', name: '数据报告',
-    desc: '对给定数据集进行清洗、分析、可视化，输出分析报告',
-    depts: ['户部', '礼部'], est: '~30分钟', cost: '¥2',
+    id: 'tpl-data-report', cat: '데이터 분석', icon: '📈', name: '데이터 보고서',
+    desc: '지정한 데이터셋을 정제, 분석, 시각화하고 분석 보고서를 작성합니다',
+    depts: ['户部', '礼部'], est: '~30분', cost: '¥2',
     params: [
-      { key: 'data_source', label: '数据源描述/路径', type: 'text', required: true },
-      { key: 'questions', label: '分析问题（每行一个）', type: 'textarea' },
-      { key: 'viz', label: '是否需要可视化图表', type: 'select', options: ['是', '否'], default: '是' },
+      { key: 'data_source', label: '데이터 소스 설명/경로', type: 'text', required: true },
+      { key: 'questions', label: '분석 질문(줄마다 하나)', type: 'textarea' },
+      { key: 'viz', label: '시각화 차트 필요 여부', type: 'select', options: ['예', '아니오'], default: '예' },
     ],
-    command: '对数据 {data_source} 进行分析。{questions}\n需要可视化：{viz}',
+    command: '{data_source} 데이터를 분석해 주세요. {questions}\n시각화 필요 여부: {viz}.',
   },
   {
-    id: 'tpl-blog', cat: '内容创作', icon: '✍️', name: '博客文章',
-    desc: '给定主题和要求，生成高质量博客文章',
-    depts: ['礼部'], est: '~15分钟', cost: '¥1',
+    id: 'tpl-blog', cat: '콘텐츠 작성', icon: '✍️', name: '블로그 글',
+    desc: '주제와 요구사항을 바탕으로 완성도 높은 블로그 글을 작성합니다',
+    depts: ['礼部'], est: '~15분', cost: '¥1',
     params: [
-      { key: 'topic', label: '文章主题', type: 'text', required: true },
-      { key: 'audience', label: '目标读者', type: 'text', default: '技术人员' },
-      { key: 'length', label: '期望字数', type: 'select', options: ['~1000字', '~2000字', '~3000字'], default: '~2000字' },
-      { key: 'style', label: '风格', type: 'select', options: ['技术教程', '观点评论', '案例分析'], default: '技术教程' },
+      { key: 'topic', label: '글 주제', type: 'text', required: true },
+      { key: 'audience', label: '대상 독자', type: 'text', default: '기술 독자' },
+      { key: 'length', label: '희망 분량', type: 'select', options: ['~1000자', '~2000자', '~3000자'], default: '~2000자' },
+      { key: 'style', label: '스타일', type: 'select', options: ['기술 튜토리얼', '의견/해설', '사례 분석'], default: '기술 튜토리얼' },
     ],
-    command: '写一篇关于「{topic}」的博客文章，面向{audience}，{length}，风格：{style}',
+    command: '「{topic}」에 관한 블로그 글을 작성해 주세요. 대상 독자: {audience}. 분량: {length}. 스타일: {style}.',
   },
   {
-    id: 'tpl-deploy', cat: '工程开发', icon: '🚀', name: '部署方案',
-    desc: '生成完整的部署检查单、Docker配置、CI/CD流程',
-    depts: ['兵部', '工部'], est: '~25分钟', cost: '¥2',
+    id: 'tpl-deploy', cat: '엔지니어링', icon: '🚀', name: '배포 계획',
+    desc: '배포 체크리스트, Docker 구성, CI/CD 흐름을 포함한 계획을 생성합니다',
+    depts: ['兵部', '工部'], est: '~25분', cost: '¥2',
     params: [
-      { key: 'project', label: '项目名称/描述', type: 'text', required: true },
-      { key: 'env', label: '部署环境', type: 'select', options: ['Docker', 'K8s', 'VPS', 'Serverless'], default: 'Docker' },
-      { key: 'ci', label: 'CI/CD 工具', type: 'select', options: ['GitHub Actions', 'GitLab CI', '无'], default: 'GitHub Actions' },
+      { key: 'project', label: '프로젝트 이름/설명', type: 'text', required: true },
+      { key: 'env', label: '배포 환경', type: 'select', options: ['Docker', 'K8s', 'VPS', 'Serverless'], default: 'Docker' },
+      { key: 'ci', label: 'CI/CD 도구', type: 'select', options: ['GitHub Actions', 'GitLab CI', '없음'], default: 'GitHub Actions' },
     ],
-    command: '为项目「{project}」生成{env}部署方案，CI/CD使用{ci}',
+    command: '프로젝트 「{project}」의 {env} 배포 계획을 작성해 주세요. CI/CD 도구는 {ci}를 사용합니다.',
   },
   {
-    id: 'tpl-email', cat: '内容创作', icon: '📧', name: '邮件/通知文案',
-    desc: '根据场景和目的，生成专业邮件或通知文案',
-    depts: ['礼部'], est: '~5分钟', cost: '¥0.3',
+    id: 'tpl-email', cat: '콘텐츠 작성', icon: '📧', name: '메일/공지 문안',
+    desc: '상황과 목적에 맞는 전문적인 메일 또는 공지 문안을 작성합니다',
+    depts: ['礼部'], est: '~5분', cost: '¥0.3',
     params: [
-      { key: 'scenario', label: '使用场景', type: 'select', options: ['商务邮件', '产品发布', '客户通知', '内部公告'], default: '商务邮件' },
-      { key: 'purpose', label: '目的/内容', type: 'textarea', required: true },
-      { key: 'tone', label: '语调', type: 'select', options: ['正式', '友好', '简洁'], default: '正式' },
+      { key: 'scenario', label: '사용 상황', type: 'select', options: ['비즈니스 메일', '제품 출시', '고객 공지', '내부 공지'], default: '비즈니스 메일' },
+      { key: 'purpose', label: '목적/내용', type: 'textarea', required: true },
+      { key: 'tone', label: '톤', type: 'select', options: ['격식 있게', '친근하게', '간결하게'], default: '격식 있게' },
     ],
-    command: '撰写一封{scenario}，{tone}语调。内容：{purpose}',
+    command: '{scenario} 문안을 작성해 주세요. 톤: {tone}. 내용: {purpose}.',
   },
   {
-    id: 'tpl-standup', cat: '日常办公', icon: '🗓️', name: '每日站会摘要',
-    desc: '汇总各部今日进展和明日计划，生成站会摘要',
-    depts: ['尚书省'], est: '~5分钟', cost: '¥0.3',
+    id: 'tpl-standup', cat: '일상 업무', icon: '🗓️', name: '일일 스탠드업 요약',
+    desc: '각 부서의 오늘 진행 상황과 내일 계획을 모아 스탠드업 요약을 작성합니다',
+    depts: ['尚书省'], est: '~5분', cost: '¥0.3',
     params: [
-      { key: 'range', label: '汇总范围', type: 'select', options: ['今天', '最近24小时', '昨天+今天'], default: '今天' },
+      { key: 'range', label: '요약 범위', type: 'select', options: ['오늘', '최근 24시간', '어제+오늘'], default: '오늘' },
     ],
-    command: '汇总{range}各部工作进展和待办，生成站会摘要',
+    command: '{range} 각 부서의 진행 상황과 할 일을 취합해 스탠드업 요약을 작성해 주세요.',
   },
 ];
 
 export const TPL_CATS = [
-  { name: '全部', icon: '📋' },
-  { name: '日常办公', icon: '💼' },
-  { name: '数据分析', icon: '📊' },
-  { name: '工程开发', icon: '⚙️' },
-  { name: '内容创作', icon: '✍️' },
+  { name: '전체', icon: '📋' },
+  { name: '일상 업무', icon: '💼' },
+  { name: '데이터 분석', icon: '📊' },
+  { name: '엔지니어링', icon: '⚙️' },
+  { name: '콘텐츠 작성', icon: '✍️' },
 ];
 
 // ── Main Store ──
@@ -305,7 +306,7 @@ export const useStore = create<AppStore>((set, get) => ({
   activeTab: 'edicts',
   edictFilter: 'active',
   sessFilter: 'all',
-  tplCatFilter: '全部',
+  tplCatFilter: '전체',
   selectedOfficial: null,
   modalTaskId: null,
   countdown: 5,
@@ -329,7 +330,7 @@ export const useStore = create<AppStore>((set, get) => ({
 
   toast: (msg, type = 'ok') => {
     const id = ++_toastId;
-    set((s) => ({ toasts: [...s.toasts, { id, msg, type }] }));
+    set((s) => ({ toasts: [...s.toasts, { id, msg: koText(msg), type }] }));
     setTimeout(() => {
       set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) }));
     }, 3000);
@@ -447,11 +448,11 @@ export function timeAgo(iso: string | undefined): string {
     if (isNaN(d.getTime())) return '';
     const diff = Date.now() - d.getTime();
     const mins = Math.floor(diff / 60000);
-    if (mins < 1) return '刚刚';
-    if (mins < 60) return mins + '分钟前';
+    if (mins < 1) return '방금 전';
+    if (mins < 60) return `${mins}분 전`;
     const hrs = Math.floor(mins / 60);
-    if (hrs < 24) return hrs + '小时前';
-    return Math.floor(hrs / 24) + '天前';
+    if (hrs < 24) return `${hrs}시간 전`;
+    return `${Math.floor(hrs / 24)}일 전`;
   } catch {
     return '';
   }

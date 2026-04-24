@@ -14,6 +14,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useStore, DEPTS } from '../store';
 import { api } from '../api';
+import { koDept, koRole, koText } from '../i18n';
 
 // ── 常量 ──
 
@@ -128,11 +129,11 @@ export default function CourtDiscussion() {
     setLoading(true);
     try {
       const res = await api.courtDiscussStart(topic, Array.from(selectedIds));
-      if (!res.ok) throw new Error(res.error || '启动失败');
+      if (!res.ok) throw new Error(res.error || '시작 실패');
       setSession(res as unknown as CourtSession);
       setPhase('session');
     } catch (e: unknown) {
-      toast((e as Error).message || '启动失败', 'err');
+      toast((e as Error).message || '시작 실패', 'err');
     } finally {
       setLoading(false);
     }
@@ -145,7 +146,7 @@ export default function CourtDiscussion() {
 
     try {
       const res = await api.courtDiscussAdvance(session.session_id, userMsg, decree);
-      if (!res.ok) throw new Error(res.error || '推进失败');
+      if (!res.ok) throw new Error(res.error || '진행 실패');
 
       // 更新 session messages（追加新消息）
       setSession((prev) => {
@@ -234,18 +235,18 @@ export default function CourtDiscussion() {
     let count = 0;
     const timer = setInterval(async () => {
       count++;
-      setDiceResult('🎲 命运轮转中...');
+      setDiceResult('🎲 운명이 굴러가는 중...');
       if (count >= 6) {
         clearInterval(timer);
         try {
           const res = await api.courtDiscussFate();
-          const event = res.event || '边疆急报传来';
+          const event = res.event || '변방에서 급보가 도착했습니다';
           setDiceResult(event);
           setDiceRolling(false);
           // 自动作为天命降临注入
-          handleAdvance(undefined, `【命运骰子】${event}`);
+          handleAdvance(undefined, `【운명 주사위】${event}`);
         } catch {
-          setDiceResult('命运之力暂时无法触及');
+          setDiceResult('운명의 힘이 잠시 닿지 않습니다');
           setDiceRolling(false);
         }
       }
@@ -266,7 +267,7 @@ export default function CourtDiscussion() {
               phase: 'concluded',
               messages: [
                 ...prev.messages,
-                { type: 'system', content: `📋 朝堂议政结束 — ${res.summary}`, timestamp: Date.now() / 1000 },
+                { type: 'system', content: `📋 조정 회의 종료 - ${res.summary}`, timestamp: Date.now() / 1000 },
               ],
             }
             : prev,
@@ -274,7 +275,7 @@ export default function CourtDiscussion() {
       }
       setAutoPlay(false);
     } catch {
-      toast('结束失败', 'err');
+      toast('종료 실패', 'err');
     } finally {
       setLoading(false);
     }
@@ -300,14 +301,14 @@ export default function CourtDiscussion() {
 
   const presetTopics = [
     ...activeEdicts.slice(0, 3).map((t) => ({
-      text: `讨论旨意 ${t.id}：${t.title}`,
+      text: `지시 ${t.id} 논의: ${koText(t.title)}`,
       taskId: t.id,
       icon: '📜',
     })),
-    { text: '讨论系统架构优化方案', taskId: '', icon: '🏗️' },
-    { text: '评估当前项目进展和风险', taskId: '', icon: '📊' },
-    { text: '制定下周工作计划', taskId: '', icon: '📋' },
-    { text: '紧急问题：线上Bug排查方案', taskId: '', icon: '🚨' },
+    { text: '시스템 아키텍처 최적화 방안 논의', taskId: '', icon: '🏗️' },
+    { text: '현재 프로젝트 진행 상황과 리스크 평가', taskId: '', icon: '📊' },
+    { text: '다음 주 작업 계획 수립', taskId: '', icon: '📋' },
+    { text: '긴급 이슈: 운영 Bug 조사 방안', taskId: '', icon: '🚨' },
   ];
 
   // ═══════════════════
@@ -320,18 +321,18 @@ export default function CourtDiscussion() {
         {/* Header */}
         <div className="text-center py-4">
           <h2 className="text-xl font-bold bg-gradient-to-r from-amber-400 to-purple-400 bg-clip-text text-transparent">
-            🏛 朝堂议政
+            🏛 조정 회의
           </h2>
           <p className="text-xs text-[var(--muted)] mt-1">
-            择臣上殿，围绕议题展开讨论 · 陛下可随时发言或降下天意改变走向
+            관원을 선택해 의제를 논의합니다 · 사용자는 언제든 발언하거나 천명을 내려 흐름을 바꿀 수 있습니다
           </p>
         </div>
 
         {/* 选择官员 */}
         <div className="bg-[var(--panel)] rounded-xl p-4 border border-[var(--line)]">
           <div className="flex items-center gap-2 mb-3">
-            <span className="text-sm font-semibold">👔 选择参朝官员</span>
-            <span className="text-xs text-[var(--muted)]">（{selectedIds.size}/8，至少2位）</span>
+            <span className="text-sm font-semibold">👔 참석 관원 선택</span>
+            <span className="text-xs text-[var(--muted)]">({selectedIds.size}/8, 최소 2명)</span>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
             {DEPTS.map((d) => {
@@ -352,9 +353,9 @@ export default function CourtDiscussion() {
                     <span className="text-lg">{d.emoji}</span>
                     <div>
                       <div className="text-xs font-semibold" style={{ color: active ? color : 'var(--text)' }}>
-                        {d.label}
+                        {koDept(d.label)}
                       </div>
-                      <div className="text-[10px] text-[var(--muted)]">{d.role}</div>
+                      <div className="text-[10px] text-[var(--muted)]">{koRole(d.role)}</div>
                     </div>
                     {active && (
                       <span
@@ -373,7 +374,7 @@ export default function CourtDiscussion() {
 
         {/* 议题 */}
         <div className="bg-[var(--panel)] rounded-xl p-4 border border-[var(--line)]">
-          <div className="text-sm font-semibold mb-2">📜 设定议题</div>
+          <div className="text-sm font-semibold mb-2">📜 의제 설정</div>
           {presetTopics.length > 0 && (
             <div className="flex flex-wrap gap-1.5 mb-3">
               {presetTopics.map((p, i) => (
@@ -395,7 +396,7 @@ export default function CourtDiscussion() {
           <textarea
             className="w-full bg-[var(--panel2)] rounded-lg p-3 text-sm border border-[var(--line)] focus:border-[var(--acc)] outline-none resize-none"
             rows={2}
-            placeholder="或自定义议题..."
+            placeholder="또는 의제를 직접 입력..."
             value={topic}
             onChange={(e) => setTopic(e.target.value)}
           />
@@ -404,8 +405,8 @@ export default function CourtDiscussion() {
         {/* 功能特性标签 */}
         <div className="flex flex-wrap gap-1.5">
           {[
-            '👑 皇帝发言', '⚡ 天命降临', '🎲 命运骰子',
-            '🔄 自动推进', '📜 讨论记录',
+            '👑 사용자 발언', '⚡ 천명 개입', '🎲 운명 주사위',
+            '🔄 자동 진행', '📜 논의 기록',
           ].map((tag) => (
             <span key={tag} className="text-[10px] px-2 py-1 rounded-full border border-[var(--line)] text-[var(--muted)]">
               {tag}
@@ -428,7 +429,7 @@ export default function CourtDiscussion() {
             cursor: selectedIds.size >= 2 && topic.trim() && !loading ? 'pointer' : 'not-allowed',
           }}
         >
-          {loading ? '召集中...' : `🏛 开始朝议（${selectedIds.size}位上殿）`}
+          {loading ? '소집 중...' : `🏛 회의 시작(${selectedIds.size}명 참석)`}
         </button>
       </div>
     );
@@ -446,13 +447,13 @@ export default function CourtDiscussion() {
       {/* 顶部控制栏 */}
       <div className="flex items-center justify-between flex-wrap gap-2 bg-[var(--panel)] rounded-xl px-4 py-2 border border-[var(--line)]">
         <div className="flex items-center gap-2">
-          <span className="text-sm font-bold">🏛 朝堂议政</span>
+          <span className="text-sm font-bold">🏛 조정 회의</span>
           <span className="text-[10px] px-2 py-0.5 rounded-full bg-[var(--acc)]20 text-[var(--acc)] border border-[var(--acc)]30">
-            第{session?.round || 0}轮
+            {session?.round || 0}차
           </span>
           {session?.phase === 'concluded' && (
             <span className="text-[10px] px-2 py-0.5 rounded-full bg-green-900/40 text-green-400 border border-green-800">
-              已结束
+              종료됨
             </span>
           )}
         </div>
@@ -460,17 +461,17 @@ export default function CourtDiscussion() {
           <button
             onClick={() => setShowDecree(!showDecree)}
             className="text-xs px-2.5 py-1 rounded-lg border border-amber-600/40 text-amber-400 hover:bg-amber-900/20 transition"
-            title="天命降临 — 上帝视角干预"
+            title="천명 개입 - 사용자 관점 개입"
           >
-            ⚡ 天命
+            ⚡ 천명
           </button>
           <button
             onClick={handleDice}
             disabled={diceRolling || loading}
             className="text-xs px-2.5 py-1 rounded-lg border border-purple-600/40 text-purple-400 hover:bg-purple-900/20 transition"
-            title="命运骰子 — 随机事件"
+            title="운명 주사위 - 무작위 사건"
           >
-            🎲 {diceRolling ? '...' : '骰子'}
+            🎲 {diceRolling ? '...' : '주사위'}
           </button>
           <button
             onClick={() => setAutoPlay(!autoPlay)}
@@ -479,14 +480,14 @@ export default function CourtDiscussion() {
               : 'border-[var(--line)] text-[var(--muted)] hover:text-[var(--text)]'
               }`}
           >
-            {autoPlay ? '⏸ 暂停' : '▶ 自动'}
+            {autoPlay ? '⏸ 일시정지' : '▶ 자동'}
           </button>
           {session?.phase !== 'concluded' && (
             <button
               onClick={handleConclude}
               className="text-xs px-2.5 py-1 rounded-lg border border-[var(--line)] text-[var(--muted)] hover:text-[var(--warn)] hover:border-[var(--warn)]40 transition"
             >
-              📋 散朝
+              📋 종료
             </button>
           )}
           <button
@@ -505,20 +506,20 @@ export default function CourtDiscussion() {
           style={{ animation: 'fadeIn .3s' }}
         >
           <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-bold text-amber-400">⚡ 天命降临 — 上帝视角</span>
+            <span className="text-sm font-bold text-amber-400">⚡ 천명 개입 — 사용자 관점</span>
             <button onClick={() => setShowDecree(false)} className="text-xs text-[var(--muted)]">
               ✕
             </button>
           </div>
           <p className="text-[10px] text-amber-300/60 mb-2">
-            降下天意改变讨论走向，所有官员将对此做出反应
+            천명을 내려 논의 흐름을 바꾸면 모든 관원이 반응합니다
           </p>
           <div className="flex gap-2">
             <input
               value={decreeInput}
               onChange={(e) => setDecreeInput(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleDecree()}
-              placeholder="例如：突然发现预算多出一倍..."
+              placeholder="예: 예산이 갑자기 두 배로 늘어남..."
               className="flex-1 bg-black/30 rounded-lg px-3 py-1.5 text-sm border border-amber-800/40 outline-none focus:border-amber-600"
             />
             <button
@@ -526,7 +527,7 @@ export default function CourtDiscussion() {
               disabled={!decreeInput.trim()}
               className="px-4 py-1.5 rounded-lg bg-gradient-to-r from-amber-600 to-purple-600 text-white text-xs font-semibold disabled:opacity-40"
             >
-              降旨
+              내리기
             </button>
           </div>
         </div>
@@ -567,15 +568,15 @@ export default function CourtDiscussion() {
           <div className="text-center mb-2">
             <div className="inline-block px-3 py-1 rounded-lg bg-gradient-to-b from-amber-800/40 to-amber-950/40 border border-amber-700/30">
               <span className="text-lg">👑</span>
-              <div className="text-[10px] text-amber-400/80">龙 椅</div>
+            <div className="text-[10px] text-amber-400/80">어 좌</div>
             </div>
           </div>
 
           {/* 官员站位 */}
           <div className="relative" style={{ minHeight: 250 }}>
             {/* 左列标签 */}
-            <div className="absolute left-0 top-0 text-[9px] text-[var(--muted)] opacity-50">三省</div>
-            <div className="absolute right-0 top-0 text-[9px] text-[var(--muted)] opacity-50">六部</div>
+            <div className="absolute left-0 top-0 text-[9px] text-[var(--muted)] opacity-50">삼성</div>
+            <div className="absolute right-0 top-0 text-[9px] text-[var(--muted)] opacity-50">육부</div>
 
             {officials.map((o) => {
               const pos = COURT_POSITIONS[o.id] || { x: 50, y: 50 };
@@ -629,7 +630,7 @@ export default function CourtDiscussion() {
                     className="text-[9px] text-center mt-0.5 whitespace-nowrap"
                     style={{ color: isSpeaking ? color : 'var(--muted)' }}
                   >
-                    {o.name}
+                    {koText(o.name)}
                   </div>
                 </div>
               );
@@ -646,7 +647,7 @@ export default function CourtDiscussion() {
             ))}
             {loading && (
               <div className="text-xs text-[var(--muted)] text-center py-2" style={{ animation: 'pulse 1.5s infinite' }}>
-                🏛 群臣正在思考...
+                🏛 관원들이 생각 중...
               </div>
             )}
             <div ref={messagesEndRef} />
@@ -659,7 +660,7 @@ export default function CourtDiscussion() {
                 value={userInput}
                 onChange={(e) => setUserInput(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleEmperor()}
-                placeholder="朕有话说..."
+                placeholder="의견을 입력하세요..."
                 className="flex-1 bg-[var(--panel2)] rounded-lg px-3 py-1.5 text-sm border border-[var(--line)] outline-none focus:border-amber-600"
               />
               <button
@@ -671,14 +672,14 @@ export default function CourtDiscussion() {
                   color: userInput.trim() ? '#000' : 'var(--muted)',
                 }}
               >
-                👑 发言
+                👑 발언
               </button>
               <button
                 onClick={() => handleAdvance()}
                 disabled={loading}
                 className="px-3 py-1.5 rounded-lg text-xs border border-[var(--acc)]40 text-[var(--acc)] hover:bg-[var(--acc)]10 disabled:opacity-40 transition"
               >
-                ▶ 下一轮
+                ▶ 다음 라운드
               </button>
             </div>
           )}
@@ -703,7 +704,7 @@ function MessageBubble({
   if (msg.type === 'system') {
     return (
       <div className="text-center text-[10px] text-[var(--muted)] py-1 border-b border-[var(--line)] border-dashed">
-        {msg.content}
+        {koText(msg.content)}
       </div>
     );
   }
@@ -711,7 +712,7 @@ function MessageBubble({
   if (msg.type === 'scene_note') {
     return (
       <div className="text-center text-[10px] text-purple-400/80 py-1 italic">
-        ✦ {msg.content} ✦
+        ✦ {koText(msg.content)} ✦
       </div>
     );
   }
@@ -720,8 +721,8 @@ function MessageBubble({
     return (
       <div className="flex justify-end">
         <div className="max-w-[80%] bg-gradient-to-br from-amber-900/40 to-amber-800/20 rounded-xl px-3 py-2 border border-amber-700/30">
-          <div className="text-[10px] text-amber-400 mb-0.5">👑 皇帝</div>
-          <div className="text-sm">{msg.content}</div>
+          <div className="text-[10px] text-amber-400 mb-0.5">👑 사용자</div>
+          <div className="text-sm">{koText(msg.content)}</div>
         </div>
       </div>
     );
@@ -731,8 +732,8 @@ function MessageBubble({
     return (
       <div className="text-center py-2">
         <div className="inline-block bg-gradient-to-r from-amber-900/30 via-purple-900/30 to-amber-900/30 rounded-lg px-4 py-2 border border-amber-600/30">
-          <div className="text-xs text-amber-400 font-bold">⚡ 天命降临</div>
-          <div className="text-sm mt-0.5">{msg.content}</div>
+          <div className="text-xs text-amber-400 font-bold">⚡ 천명 개입</div>
+          <div className="text-sm mt-0.5">{koText(msg.content)}</div>
         </div>
       </div>
     );
@@ -750,7 +751,7 @@ function MessageBubble({
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1.5 mb-0.5">
           <span className="text-[11px] font-semibold" style={{ color }}>
-            {msg.official_name || '官员'}
+            {koText(msg.official_name || '관원')}
           </span>
           {msg.emotion && EMOTION_EMOJI[msg.emotion] && (
             <span className="text-xs">{EMOTION_EMOJI[msg.emotion]}</span>
@@ -765,7 +766,7 @@ function MessageBubble({
                 </span>
               );
             }
-            return <span key={i}>{part}</span>;
+            return <span key={i}>{koText(part)}</span>;
           })}
         </div>
       </div>
